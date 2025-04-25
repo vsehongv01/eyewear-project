@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>렌즈 여벌 도수 시각화</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f9f9f9;
+      padding: 20px;
+      margin: 0;
+    }
+    h2 {
+      text-align: center;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 0 auto;
+      max-width: 100%;
+    }
+    table {
+      border-collapse: collapse;
+      font-size: 12px;
+      width: 100%;
+      min-width: 600px;
+    }
+    th, td {
+      border: 1px solid #ccc;
+      text-align: center;
+      width: 38px;
+      height: 26px;
+    }
+    th {
+      background-color: #eee;
+    }
+    .highlight {
+      background-color: #a3d5ff;
+    }
+    .no-astigmatism {
+      background-color: #ffe3a3;
+    }
+    @media (max-width: 768px) {
+      table {
+        font-size: 10px;
+      }
+      th, td {
+        width: 30px;
+        height: 24px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h2 id="lens-title">렌즈 여벌 도수 시각화</h2>
+  <div class="table-container">
+    <table id="lens-table">
+      <thead>
+        <tr><th>SPH\CYL</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <script>
+    async function fetchLensData() {
+      try {
+        console.log('데이터 요청 시작...');
+        const response = await fetch('/api/lens-data');
+        console.log('서버 응답:', response);
+
+        if (!response.ok) {
+          throw new Error('데이터를 가져오는데 실패했습니다.');
+        }
+
+        const data = await response.json();
+        console.log('받아온 데이터:', data);
+        
+        // 데이터 정제
+        const cleanedData = data.map(lens => {
+          const cleaned = {};
+          for (const [key, value] of Object.entries(lens)) {
+            const cleanKey = key.replace(/"/g, '').trim();
+            const cleanValue = value.replace(/"/g, '').trim();
+            cleaned[cleanKey] = cleanValue;
+          }
+          return cleaned;
+        });
+        
+        console.log('정제된 데이터:', cleanedData);
+        populateLensSelector(cleanedData);
+      } catch (error) {
+        console.error('Error:', error);
+        alert('데이터를 가져오는데 실패했습니다. 콘솔을 확인해주세요.');
+      }
+    }
+
+    function clean(val) {
+      return parseFloat((val ?? '').trim()) || 0;
+    }
+
+    function populateLensSelector(data) {
+      const select = document.createElement('select');
+      select.id = "lens-select";
+      select.style.marginBottom = "20px";
+
+      const seenKeys = new Set();
+
+      data.forEach((lens) => {
+        if (!lens) return;
+
+        const brand = (lens['브랜드'] ?? '').replace(/"/g, '').trim();
+        const type = (lens['렌즈 종류'] ?? '').replace(/"/g, '').trim();
+        const index = (lens['굴절률'] ?? '').replace(/"/g, '').trim();
+        const coating = (lens['코팅'] ?? '').replace(/"/g, '').trim();
+
+        const key = `${brand} ${type} ${index} ${coating}`;
+        if (!seenKeys.has(key) && key.trim() !== '') {
+          const option = document.createElement('option');
+          option.value = key;
+          option.textContent = key;
+          select.appendChild(option);
+          seenKeys.add(key);
+        }
+      });
+
+      select.addEventListener('change', (e) => {
+        const selectedKey = e.target.value;
+        const selectedLens = data.find((lens) => {
+          const brand = (lens['브랜드'] ?? '').replace(/"/g, '').trim();
+          const type = (lens['렌즈 종류'] ?? '').replace(/"/g, '').trim();
+          const index = (lens['굴절률'] ?? '').replace(/"/g, '').trim();
+          const coating = (lens['코팅'] ?? '').replace(/"/g, '').trim();
+          const key = `${brand} ${type} ${index} ${coating}`;
+          return key === selectedKey;
+        });
+        renderTable(selectedLens);
+      });
+
+      document.body.insertBefore(select, document.querySelector(".table-container"));
+      if (select.options.length > 0) {
+        select.dispatchEvent(new Event('change'));
+      }
+    }
+
+    function renderTable(lens) {
+      const table = document.getElementById("lens-table");
+      const headerRow = table.querySelector("thead tr");
+      const tbody = table.querySelector("tbody");
+      headerRow.innerHTML = '<th>SPH\\CYL</th>';
+      tbody.innerHTML = '';
+
+      const cylValues = Array.from({ length: 33 }, (_, i) => (0 - i * 0.25).toFixed(2));
+      const sphValues = Array.from({ length: 161 }, (_, i) => (20 - i * 0.25).toFixed(2));
+
+      const sStart = clean(lens['구면 도수 시작 범위 (S)']);
+      const sEnd = clean(lens['구면 도수 끝 범위 (S)']);
+      const cHyperopia = clean(lens['원시 난시 도수 범위 (C)']);
+      const cMyopia = clean(lens['근시 난시 도수 범위 (C)']);
+      const noAstigStart = lens['난시없는 근시도수 시작'] ? clean(lens['난시없는 근시도수 시작']) : null;
+      const noAstigEnd = lens['난시없는 근시도수 끝'] ? clean(lens['난시없는 근시도수 끝']) : null;
+
+      document.getElementById("lens-title").textContent = `${(lens['브랜드'] ?? '').replace(/"/g, '').trim()} ${(lens['렌즈 종류'] ?? '').replace(/"/g, '').trim()} ${(lens['굴절률'] ?? '').replace(/"/g, '').trim()} ${(lens['코팅'] ?? '').replace(/"/g, '').trim()} 도수범위`;
+
+      let visibleCylIndices = new Set();
+      const dataRows = [];
+
+      sphValues.forEach(sph => {
+        const row = [];
+        const sphNum = parseFloat(sph);
+        let hasVisibleCell = false;
+
+        cylValues.forEach((cyl, idx) => {
+          const cylNum = parseFloat(cyl);
+          if (sphNum >= 0 && sphNum <= sStart && cylNum >= cHyperopia && cylNum <= 0) {
+            row[idx] = 'highlight';
+            visibleCylIndices.add(idx);
+            hasVisibleCell = true;
+          } else if (sphNum < 0 && sphNum >= sEnd && cylNum >= cMyopia && cylNum <= 0) {
+            row[idx] = 'highlight';
+            visibleCylIndices.add(idx);
+            hasVisibleCell = true;
+          } else if (noAstigStart !== null && noAstigEnd !== null && sphNum >= noAstigEnd && sphNum <= noAstigStart && cylNum === 0) {
+            row[idx] = 'no-astigmatism';
+            visibleCylIndices.add(idx);
+            hasVisibleCell = true;
+          } else {
+            row[idx] = '';
+          }
+        });
+
+        if (hasVisibleCell) {
+          dataRows.push({ sph, row });
+        }
+      });
+
+      cylValues.forEach((cyl, idx) => {
+        if (visibleCylIndices.has(idx)) {
+          const th = document.createElement("th");
+          th.textContent = cyl;
+          headerRow.appendChild(th);
+        }
+      });
+
+      dataRows.forEach(({ sph, row }) => {
+        const tr = document.createElement("tr");
+        const th = document.createElement("th");
+        const sphFormatted = parseFloat(sph) > 0 ? `+${sph}` : sph;
+        th.textContent = sphFormatted;
+
+        tr.appendChild(th);
+
+        row.forEach((cell, idx) => {
+          if (visibleCylIndices.has(idx)) {
+            const td = document.createElement("td");
+            if (cell) td.className = cell;
+            tr.appendChild(td);
+          }
+        });
+
+        tbody.appendChild(tr);
+      });
+    }
+
+    fetchLensData();
+  </script>
+</body>
+</html>
