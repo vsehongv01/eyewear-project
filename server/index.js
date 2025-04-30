@@ -2,9 +2,12 @@ const express = require('express');
 const path = require('path');
 const bodyParser = require('body-parser');
 const fetch = require('node-fetch');
+const bcrypt = require('bcrypt');
 
 const app = express();
 const port = 3000;
+
+const pool = require('./db');
 
 // 미들웨어 설정
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -19,6 +22,10 @@ app.get('/signup', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/signup.html'));
 });
 
+app.get('/main', (req, res) => {
+  res.sendFile(path.join(__dirname, '../views/main.html'));
+});
+
 app.get('/lensrange', (req, res) => {
   res.sendFile(path.join(__dirname, '../views/lensrange.html'));
 });
@@ -29,16 +36,13 @@ app.get('/api/lens-data', async (req, res) => {
     const sheetName = encodeURIComponent('테스트DB');
     const url = `https://docs.google.com/spreadsheets/d/1RMZ1KSPqUyjt7tX7R-ZlJORMkhCr1_pVrK6Vv5CqI1M/gviz/tq?tqx=out:csv&sheet=${sheetName}`;
     
-    console.log('구글 시트 URL:', url);
     const response = await fetch(url);
-    console.log('구글 시트 응답 상태:', response.status);
     
     if (!response.ok) {
       throw new Error(`구글 시트 응답 오류: ${response.status} ${response.statusText}`);
     }
     
     const text = await response.text();
-    console.log('구글 시트 응답 데이터:', text.substring(0, 200) + '...'); // 처음 200자만 로깅
     
     const rows = text.trim().split('\n').map(r => r.split(','));
     if (rows.length === 0) {
@@ -46,10 +50,8 @@ app.get('/api/lens-data', async (req, res) => {
     }
     
     const headers = rows.shift();
-    console.log('구글 시트 헤더:', headers);
     
     const data = rows.map(row => Object.fromEntries(row.map((val, i) => [headers[i], val])));
-    console.log('처리된 데이터 첫 번째 행:', data[0]);
     
     res.json(data);
   } catch (error) {
@@ -64,34 +66,71 @@ app.get('/api/lens-data', async (req, res) => {
 // 정적 파일 서빙 (CSS, JS, 이미지 등)
 app.use(express.static(path.join(__dirname, '../public')));
 
-// 회원가입 처리
-app.post('/signup', (req, res) => {
+app.post('/signup', async (req, res) => {
   const { name, email, password, role, license } = req.body;
-  
-  // TODO: 데이터베이스에 저장하는 로직 추가 예정
-  console.log('가입된 정보:', { name, email, password, role, license });
-  
-  // 임시 응답
-  res.json({
-    success: true,
-    message: '회원가입이 완료되었습니다.',
-    user: { name, email, role, license }
-  });
+
+  try {
+    // 이메일 중복 체크
+    const [existingUser] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+    if (existingUser.length > 0) {
+      return res.status(400).json({ success: false, message: '이미 사용 중인 이메일입니다.' });
+    }
+
+    // role 값 검증
+    if (!['optician', 'customer'].includes(role)) {
+      return res.status(400).json({ success: false, message: '올바르지 않은 역할입니다.' });
+    }
+
+    // 비밀번호 해싱
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const sql = 'INSERT INTO users (name, email, password, role, license_number) VALUES (?, ?, ?, ?, ?)';
+    const values = [name, email, hashedPassword, role, role === 'optician' ? license : null];
+
+    const [results] = await pool.promise().query(sql, values);
+
+    res.json({
+      success: true,
+      message: '회원가입이 완료되었습니다.',
+      user: { name, email, role }
+    });
+  } catch (err) {
+    console.error('회원가입 오류:', err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
 });
 
-// 로그인 처리
-app.post('/login', (req, res) => {
+app.post('/login', async (req, res) => {
   const { email, password } = req.body;
   
-  // TODO: 데이터베이스에서 사용자 확인 로직 추가 예정
-  console.log('로그인 시도:', { email, password });
-  
-  // 임시 응답
-  res.json({
-    success: true,
-    message: '로그인이 완료되었습니다.',
-    user: { email }
-  });
+  try {
+    const [users] = await pool.promise().query('SELECT * FROM users WHERE email = ?', [email]);
+    
+    if (users.length === 0) {
+      return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 일치하지 않습니다.' });
+    }
+
+    const user = users[0];
+    
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+
+    if (!isPasswordValid) {
+      return res.status(401).json({ success: false, message: '이메일 또는 비밀번호가 일치하지 않습니다.' });
+    }
+
+    res.json({
+      success: true,
+      message: '로그인이 완료되었습니다.',
+      user: { 
+        name: user.name,
+        email: user.email,
+        role: user.role
+      }
+    });
+  } catch (err) {
+    console.error('로그인 오류 상세:', err);
+    res.status(500).json({ success: false, message: '서버 오류가 발생했습니다.' });
+  }
 });
 
 app.listen(port, () => {

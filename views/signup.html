@@ -3,108 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>회원가입</title>
-  <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-      min-height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-    }
-
-    .container {
-      background: white;
-      padding: 2.5rem;
-      border-radius: 15px;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
-      width: 100%;
-      max-width: 400px;
-    }
-
-    h2 {
-      color: #2c3e50;
-      margin-bottom: 2rem;
-      text-align: center;
-      font-size: 1.8rem;
-    }
-
-    .form-group {
-      margin-bottom: 1.2rem;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 0.5rem;
-      color: #34495e;
-      font-weight: 500;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 12px 15px;
-      border: 2px solid #e0e0e0;
-      border-radius: 8px;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      height: 45px;
-    }
-
-    input:focus, select:focus {
-      outline: none;
-      border-color: #3498db;
-      box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-    }
-
-    .button-group {
-      display: flex;
-      gap: 10px;
-      margin-top: 1rem;
-    }
-
-    button {
-      flex: 1;
-      padding: 12px;
-      background: #3498db;
-      color: white;
-      border: none;
-      border-radius: 8px;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      height: 45px;
-    }
-
-    button:hover {
-      background: #2980b9;
-      transform: translateY(-2px);
-    }
-
-    .back-link {
-      display: block;
-      text-align: center;
-      margin-top: 1.5rem;
-      color: #7f8c8d;
-      text-decoration: none;
-      font-size: 0.9rem;
-      transition: color 0.3s ease;
-    }
-
-    .back-link:hover {
-      color: #3498db;
-    }
-
-    #license-group {
-      display: none;
-    }
-  </style>
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
   <div class="container">
@@ -176,10 +75,12 @@
 
         const data = await response.json();
         if (data.success) {
-          alert(data.message);
-          window.location.href = '/';
+          // 사용자 정보를 localStorage에 저장
+          localStorage.setItem('user', JSON.stringify(data.user));
+          // 메인 페이지로 이동
+          window.location.href = '/main';
         } else {
-          alert('회원가입에 실패했습니다.');
+          alert(data.message || '회원가입에 실패했습니다.');
         }
       } catch (error) {
         console.error('Error:', error);

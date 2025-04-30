@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <title>메인 페이지</title>
+  <link rel="stylesheet" href="/style.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    .sidebar-btn {
+      width: 100%;
+      background: none;
+      border: none;
+      color: var(--text-main);
+      font-size: 1.08rem;
+      font-weight: 600;
+      padding: 13px 0 13px 12px;
+      text-align: left;
+      border-radius: 10px;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      transition: background 0.18s, color 0.18s;
+      cursor: pointer;
+    }
+    .sidebar-btn:hover, .sidebar-btn.active {
+      background: var(--main-bg);
+      color: var(--primary-dark);
+    }
+    .sidebar-icon {
+      font-size: 1.18rem;
+      width: 22px;
+      text-align: center;
+    }
+    @media (max-width: 900px) {
+      nav { width: 60px !important; padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+      .sidebar-btn span { display: none; }
+      .sidebar-btn { justify-content: center; padding-left: 0; }
+      h2 { font-size: 1.1rem !important; }
+    }
+    @media (max-width: 600px) {
+      nav { display: none !important; }
+      header { padding-left: 1rem !important; padding-right: 1rem !important; }
+      main { padding: 0.5rem !important; }
+    }
+    .profile-pic {
+      width: 48px; height: 48px; border-radius: 50%; background: #e0eafc; display: flex; align-items: center; justify-content: center; font-size: 1.7rem; color: var(--primary-dark); font-weight: 800; cursor:pointer; box-shadow: 0 2px 8px #4f8cff22;
+    }
+    .main-card {
+      background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%);
+      border-radius: 22px;
+      box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.13);
+      padding: 3.5rem 2.8rem 2.5rem 2.8rem;
+      min-width: 320px;
+      min-height: 220px;
+      text-align: center;
+      max-width: 420px;
+      margin: 0 auto;
+      position: relative;
+      overflow: hidden;
+    }
+    .main-card h2 {
+      color: var(--primary-dark);
+      margin-bottom: 1.7rem;
+      font-size: 2.1rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+    }
+    .main-card .role-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: #fff;
+      font-size: 1.02rem;
+      font-weight: 700;
+      border-radius: 8px;
+      padding: 5px 16px;
+      margin-bottom: 1.2rem;
+      box-shadow: 0 1px 4px #4f8cff22;
+    }
+    .main-card .desc {
+      color: var(--text-sub);
+      font-size: 1.08rem;
+      margin-bottom: 2.2rem;
+    }
+    .main-card .main-cta {
+      margin-top: 1.5rem;
+      display: flex;
+      justify-content: center;
+      gap: 18px;
+    }
+    .main-card .main-cta button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 1.08rem;
+      font-weight: 700;
+      padding: 13px 28px;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.2s;
+      box-shadow: 0 2px 8px 0 #4f8cff22;
+    }
+    .main-card .main-cta button:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px) scale(1.03);
+    }
+  </style>
+</head>
+<body style="background: var(--main-bg);">
+  <div style="display: flex; min-height: 100vh;">
+    <!-- 왼쪽 사이드바 -->
+    <nav style="width: 220px; background: #fff; box-shadow: 2px 0 16px 0 #4f8cff11; display: flex; flex-direction: column; align-items: flex-start; padding: 2.2rem 1.2rem 1.2rem 1.2rem; gap: 18px;">
+      <h2 style="color: var(--primary-dark); font-size: 1.4rem; margin-bottom: 2.5rem; letter-spacing: -1px; font-weight: 900;">👓 EYELAB</h2>
+      <button class="sidebar-btn" onclick="location.href='/main'"><i class="fa-solid fa-house sidebar-icon"></i><span>홈</span></button>
+      <button class="sidebar-btn" onclick="location.href='/lensrange'"><i class="fa-solid fa-glasses sidebar-icon"></i><span>여벌렌즈 검색</span></button>
+      <button class="sidebar-btn" disabled><i class="fa-solid fa-plus sidebar-icon"></i><span>추가기능1</span></button>
+      <button class="sidebar-btn" disabled><i class="fa-solid fa-plus sidebar-icon"></i><span>추가기능2</span></button>
+      <div style="flex:1;"></div>
+      <button class="logout-btn sidebar-btn" onclick="logout()"><i class="fa-solid fa-arrow-right-from-bracket sidebar-icon"></i><span>로그아웃</span></button>
+    </nav>
+    <!-- 오른쪽 전체 -->
+    <div style="flex:1; display: flex; flex-direction: column; min-width:0;">
+      <!-- 상단 프로필/마이페이지 -->
+      <header style="display: flex; justify-content: flex-end; align-items: center; padding: 1.2rem 2.2rem 0.5rem 2.2rem; background: transparent;">
+        <div style="display: flex; align-items: center; gap: 18px;">
+          <div style="text-align: right;">
+            <div id="userName" style="font-weight:700; color:var(--primary-dark); font-size:1.13rem;"></div>
+            <div id="userEmail" style="font-size:0.97rem; color:var(--text-sub);"></div>
+          </div>
+          <div class="profile-pic" onclick="alert('마이페이지 준비중!')">
+            <span id="userInitial">M</span>
+          </div>
+        </div>
+      </header>
+      <!-- 메인 컨텐츠 -->
+      <main style="flex:1; display: flex; align-items: center; justify-content: center; min-height: 400px; padding: 1.5rem;">
+        <div class="main-card">
+          <h2>환영합니다!<span style="font-size:1.3rem; margin-left:7px;">👋</span></h2>
+          <div class="role-badge" id="userRole"></div>
+          <div class="desc">EYELAB에 오신 것을 환영합니다.<br>왼쪽 메뉴에서 원하는 기능을 선택하세요.<br>더 많은 기능이 곧 추가될 예정입니다!</div>
+          <div class="main-cta">
+            <button onclick="location.href='/lensrange'"><i class="fa-solid fa-glasses"></i> 여벌렌즈 검색</button>
+            <button onclick="alert('준비중입니다!')"><i class="fa-solid fa-user"></i> 마이페이지</button>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const user = JSON.parse(localStorage.getItem('user'));
+      if (!user) {
+        window.location.href = '/';
+        return;
+      }
+      document.getElementById('userName').textContent = user.name;
+      document.getElementById('userEmail').textContent = user.email;
+      document.getElementById('userRole').textContent = user.role === 'optician' ? '안경사' : '일반인';
+      document.getElementById('userInitial').textContent = user.name ? user.name[0].toUpperCase() : 'M';
+    });
+    function logout() {
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+  </script>
+</body>
+</html> 

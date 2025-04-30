@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <title>렌즈 여벌 도수 시각화</title>
+  <link rel="stylesheet" href="style.css">
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -13,25 +14,56 @@
     h2 {
       text-align: center;
     }
+    #top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+    }
+    #lens-select {
+      margin-left: 10px;
+    }
+    #lens-search-section {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    #lens-search-bar {
+      margin-bottom: 5px;
+    }
+    #lens-dropdown {
+      display: none;
+      width: 250px;
+      margin-left: 10px;
+    }
+    #search-result-wrapper {
+      display: flex;
+      align-items: center;
+    }
     .table-container {
       overflow-x: auto;
-      margin: 0 auto;
-      max-width: 100%;
+      overflow-y: auto;
+      margin: 20px auto;
+      max-width: 900px;
+      max-height: 600px;
+      border-radius: 8px;
+      box-shadow: 0 0 8px rgba(0, 0, 0, 0.05);
+      background: white;
     }
     table {
       border-collapse: collapse;
-      font-size: 12px;
-      width: 100%;
-      min-width: 600px;
+      font-size: 11px;
+      width: auto;
+      margin: 0 auto;
     }
     th, td {
-      border: 1px solid #ccc;
+      border: 1px solid #ddd;
       text-align: center;
-      width: 38px;
-      height: 26px;
+      width: 36px;
+      height: 24px;
     }
     th {
-      background-color: #eee;
+      background-color: #f0f0f0;
     }
     .highlight {
       background-color: #a3d5ff;
@@ -51,47 +83,50 @@
   </style>
 </head>
 <body>
-  <h2 id="lens-title">렌즈 여벌 도수 시각화</h2>
-  <div class="table-container">
-    <table id="lens-table">
-      <thead>
-        <tr><th>SPH\CYL</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
+  <div class="container" style="max-width: 1000px;">
+    <h2 id="lens-title" style="margin-bottom: 2.5rem; font-size:2rem; text-align:center;">렌즈 여벌 도수 시각화</h2>
+    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 18px; gap: 24px;">
+      <div style="flex:1; min-width:220px; display: flex; align-items: center; gap: 10px;">
+        <label for="lens-select" style="margin-bottom:0;"><strong>렌즈 종류:</strong></label>
+        <select id="lens-select" class="lens-select"></select>
+      </div>
+      <div style="flex:1; min-width:320px; text-align:right; display: flex; flex-direction: column; align-items: flex-end;">
+        <div id="lens-search-bar" style="margin-bottom: 7px; display: flex; align-items: center; gap: 6px;">
+          SPH: <input type="number" id="input-sph" step="0.25" class="small-input" inputmode="decimal" pattern="^-?\\d+(\\.\\d{1,2})?$">
+          CYL: <input type="number" id="input-cyl" step="0.25" class="small-input" inputmode="decimal" pattern="^-?\\d+(\\.\\d{1,2})?$">
+          <button class="small-btn" onclick="searchLensByPower()">검색</button>
+        </div>
+        <div id="search-result-wrapper" style="margin-top: 2px; text-align: right; display: flex; flex-direction: row; align-items: center; justify-content: flex-end; gap: 8px;">
+          <label for="lens-dropdown" style="font-size:0.97rem; color:var(--text-sub);">검색 결과:</label>
+          <select id="lens-dropdown" onchange="selectFromDropdown(this)" class="result-dropdown"></select>
+        </div>
+      </div>
+    </div>
+    <div class="table-container">
+      <table id="lens-table">
+        <thead>
+          <tr><th>SPH\CYL</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
 
   <script>
+    let lensData = [];
+
     async function fetchLensData() {
-      try {
-        console.log('데이터 요청 시작...');
-        const response = await fetch('/api/lens-data');
-        console.log('서버 응답:', response);
-
-        if (!response.ok) {
-          throw new Error('데이터를 가져오는데 실패했습니다.');
+      const response = await fetch('/api/lens-data');
+      const raw = await response.json();
+      lensData = raw.map(lens => {
+        const clean = {};
+        for (const [k, v] of Object.entries(lens)) {
+          clean[k.replace(/"/g, '').trim()] = v.replace(/"/g, '').trim();
         }
+        return clean;
+      });
 
-        const data = await response.json();
-        console.log('받아온 데이터:', data);
-        
-        // 데이터 정제
-        const cleanedData = data.map(lens => {
-          const cleaned = {};
-          for (const [key, value] of Object.entries(lens)) {
-            const cleanKey = key.replace(/"/g, '').trim();
-            const cleanValue = value.replace(/"/g, '').trim();
-            cleaned[cleanKey] = cleanValue;
-          }
-          return cleaned;
-        });
-        
-        console.log('정제된 데이터:', cleanedData);
-        populateLensSelector(cleanedData);
-      } catch (error) {
-        console.error('Error:', error);
-        alert('데이터를 가져오는데 실패했습니다. 콘솔을 확인해주세요.');
-      }
+      populateLensSelector(lensData);
     }
 
     function clean(val) {
@@ -99,47 +134,74 @@
     }
 
     function populateLensSelector(data) {
-      const select = document.createElement('select');
-      select.id = "lens-select";
-      select.style.marginBottom = "20px";
-
-      const seenKeys = new Set();
-
-      data.forEach((lens) => {
-        if (!lens) return;
-
-        const brand = (lens['브랜드'] ?? '').replace(/"/g, '').trim();
-        const type = (lens['렌즈 종류'] ?? '').replace(/"/g, '').trim();
-        const index = (lens['굴절률'] ?? '').replace(/"/g, '').trim();
-        const coating = (lens['코팅'] ?? '').replace(/"/g, '').trim();
-
-        const key = `${brand} ${type} ${index} ${coating}`;
-        if (!seenKeys.has(key) && key.trim() !== '') {
-          const option = document.createElement('option');
-          option.value = key;
-          option.textContent = key;
-          select.appendChild(option);
-          seenKeys.add(key);
+      const select = document.getElementById('lens-select');
+      const seen = new Set();
+      data.forEach(lens => {
+        const label = `${lens['브랜드']} ${lens['렌즈 종류']} ${lens['굴절률']} ${lens['코팅']}`;
+        if (!seen.has(label)) {
+          const opt = document.createElement('option');
+          opt.value = label;
+          opt.textContent = label;
+          select.appendChild(opt);
+          seen.add(label);
         }
       });
+      select.addEventListener('change', () => {
+        const sel = select.value;
+        const target = data.find(lens => `${lens['브랜드']} ${lens['렌즈 종류']} ${lens['굴절률']} ${lens['코팅']}` === sel);
+        if (target) renderTable(target);
+      });
+      select.dispatchEvent(new Event('change'));
+    }
 
-      select.addEventListener('change', (e) => {
-        const selectedKey = e.target.value;
-        const selectedLens = data.find((lens) => {
-          const brand = (lens['브랜드'] ?? '').replace(/"/g, '').trim();
-          const type = (lens['렌즈 종류'] ?? '').replace(/"/g, '').trim();
-          const index = (lens['굴절률'] ?? '').replace(/"/g, '').trim();
-          const coating = (lens['코팅'] ?? '').replace(/"/g, '').trim();
-          const key = `${brand} ${type} ${index} ${coating}`;
-          return key === selectedKey;
+    function updateDropdown(results) {
+      const dropdown = document.getElementById('lens-dropdown');
+      dropdown.innerHTML = '';
+      if (results.length > 0) {
+        dropdown.style.display = 'block';
+        results.forEach(lens => {
+          const label = `${lens['브랜드']} ${lens['렌즈 종류']} ${lens['굴절률']} ${lens['코팅']}`;
+          const option = document.createElement('option');
+          option.value = label;
+          option.textContent = label;
+          dropdown.appendChild(option);
         });
-        renderTable(selectedLens);
+      } else {
+        dropdown.style.display = 'none';
+      }
+    }
+
+    function selectFromDropdown(selectEl) {
+      const selectedLabel = selectEl.value;
+      const selectedLens = lensData.find(lens => {
+        const label = `${lens['브랜드']} ${lens['렌즈 종류']} ${lens['굴절률']} ${lens['코팅']}`;
+        return label === selectedLabel;
+      });
+      if (selectedLens) renderTable(selectedLens);
+    }
+
+    function searchLensByPower() {
+      let sph = parseFloat(document.getElementById('input-sph').value);
+      let cyl = parseFloat(document.getElementById('input-cyl').value);
+      if (cyl > 0) {
+        sph = sph + cyl;
+        cyl = -cyl;
+      }
+      const results = lensData.filter(lens => {
+        const sStart = parseFloat(lens['구면 도수 시작 범위 (S)']) || 0;
+        const sEnd = parseFloat(lens['구면 도수 끝 범위 (S)']) || 0;
+        const cHyper = parseFloat(lens['원시 난시 도수 범위 (C)']) || 0;
+        const cMyop = parseFloat(lens['근시 난시 도수 범위 (C)']) || 0;
+        const sumLimit = parseFloat(lens['합도수']) || null;
+
+        const isHyper = sph > 0 && sph <= sStart && cyl >= cHyper && cyl <= 0;
+        const isMyop = sph <= 0 && sph <= sStart && sph >= sEnd && cyl >= cMyop && cyl <= 0;
+        const isSumOk = sumLimit !== null ? (sph + cyl >= sumLimit) : true;
+
+        return (isHyper || isMyop) && isSumOk;
       });
 
-      document.body.insertBefore(select, document.querySelector(".table-container"));
-      if (select.options.length > 0) {
-        select.dispatchEvent(new Event('change'));
-      }
+      updateDropdown(results);
     }
 
     function renderTable(lens) {
@@ -158,8 +220,19 @@
       const cMyopia = clean(lens['근시 난시 도수 범위 (C)']);
       const noAstigStart = lens['난시없는 근시도수 시작'] ? clean(lens['난시없는 근시도수 시작']) : null;
       const noAstigEnd = lens['난시없는 근시도수 끝'] ? clean(lens['난시없는 근시도수 끝']) : null;
+      const sumPowerLimit = lens['합도수'] ? clean(lens['합도수']) : null;
 
-      document.getElementById("lens-title").textContent = `${(lens['브랜드'] ?? '').replace(/"/g, '').trim()} ${(lens['렌즈 종류'] ?? '').replace(/"/g, '').trim()} ${(lens['굴절률'] ?? '').replace(/"/g, '').trim()} ${(lens['코팅'] ?? '').replace(/"/g, '').trim()} 도수범위`;
+      // 검색 입력값 가져오기
+      let searchSph = parseFloat(document.getElementById('input-sph').value);
+      let searchCyl = parseFloat(document.getElementById('input-cyl').value);
+      if (searchCyl > 0) {
+        searchSph = searchSph + searchCyl;
+        searchCyl = -searchCyl;
+      }
+      searchSph = searchSph?.toFixed(2);
+      searchCyl = searchCyl?.toFixed(2);
+
+      document.getElementById("lens-title").textContent = `${lens['브랜드']} ${lens['렌즈 종류']} ${lens['굴절률']} ${lens['코팅']} 도수범위`;
 
       let visibleCylIndices = new Set();
       const dataRows = [];
@@ -171,11 +244,14 @@
 
         cylValues.forEach((cyl, idx) => {
           const cylNum = parseFloat(cyl);
-          if (sphNum >= 0 && sphNum <= sStart && cylNum >= cHyperopia && cylNum <= 0) {
+          const sumPower = sphNum + cylNum;
+          const passesSumPower = sumPowerLimit !== null ? sumPower >= sumPowerLimit : true;
+
+          if (sphNum > 0 && sphNum <= sStart && cylNum >= cHyperopia && cylNum <= 0 && passesSumPower) {
             row[idx] = 'highlight';
             visibleCylIndices.add(idx);
             hasVisibleCell = true;
-          } else if (sphNum < 0 && sphNum >= sEnd && cylNum >= cMyopia && cylNum <= 0) {
+          } else if (sphNum <= 0 && sphNum <= sStart && sphNum >= sEnd && cylNum >= cMyopia && cylNum <= 0 && passesSumPower) {
             row[idx] = 'highlight';
             visibleCylIndices.add(idx);
             hasVisibleCell = true;
@@ -196,7 +272,7 @@
       cylValues.forEach((cyl, idx) => {
         if (visibleCylIndices.has(idx)) {
           const th = document.createElement("th");
-          th.textContent = cyl;
+          th.textContent = parseFloat(cyl).toFixed(2);
           headerRow.appendChild(th);
         }
       });
@@ -204,15 +280,18 @@
       dataRows.forEach(({ sph, row }) => {
         const tr = document.createElement("tr");
         const th = document.createElement("th");
-        const sphFormatted = parseFloat(sph) > 0 ? `+${sph}` : sph;
+        const sphFormatted = parseFloat(sph) > 0 ? `+${parseFloat(sph).toFixed(2)}` : parseFloat(sph).toFixed(2);
         th.textContent = sphFormatted;
-
         tr.appendChild(th);
 
         row.forEach((cell, idx) => {
           if (visibleCylIndices.has(idx)) {
             const td = document.createElement("td");
             if (cell) td.className = cell;
+            // 검색한 도수에 해당하는 셀에 빨간 테두리
+            if (sph === searchSph && cylValues[idx] === searchCyl) {
+              td.classList.add('highlight-search');
+            }
             tr.appendChild(td);
           }
         });
